@@ -34,8 +34,8 @@ function generateRandomString(length) {
 // Route: Initiate Spotify OAuth
 app.get('/auth/spotify', (req, res) => {
   const state = generateRandomString(16);
-  // Add user-read-private scope for accessing user profile
-  const scope = 'playlist-read-private playlist-modify-public playlist-modify-private user-read-private';
+  // Updated scopes to include user-library-read for accessing audio features
+  const scope = 'playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private user-read-private user-library-read user-read-recently-played';
 
   const authURL = 'https://accounts.spotify.com/authorize?' +
     new URLSearchParams({
@@ -240,6 +240,54 @@ app.get('/api/playlists/:userId', async (req, res) => {
   } catch (error) {
     console.error('Playlists fetch error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to fetch playlists' });
+  }
+});
+
+// Route: Get audio features for multiple tracks
+app.get('/api/audio-features', async (req, res) => {
+  const userId = req.query.user_id;
+  const trackIds = req.query.ids; // Comma-separated track IDs
+
+  const session = userSessions.get(userId);
+
+  if (!session) {
+    return res.status(401).json({ error: 'No valid session' });
+  }
+
+  // Check if token is expired and refresh if needed
+  if (Date.now() >= session.expires_at) {
+    console.log('Token expired, attempting refresh...');
+    try {
+      await refreshTokenForSession(userId);
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return res.status(401).json({ error: 'Token refresh failed', details: error.message });
+    }
+  }
+
+  try {
+    const url = `https://api.spotify.com/v1/audio-features?ids=${trackIds}`;
+    console.log(`Fetching audio features for tracks: ${trackIds}`);
+
+    const response = await axios.get(url, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` }
+    });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Audio features fetch error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+
+    res.status(error.response?.status || 500).json({
+      error: 'Failed to fetch audio features',
+      details: error.response?.data || error.message,
+      status: error.response?.status
+    });
   }
 });
 
