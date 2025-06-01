@@ -241,6 +241,32 @@
       text-decoration: underline;
     }
 
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(155, 89, 182, 0.2);
+      border-radius: 4px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(45deg, #9B59B6, #BB6BD9);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .bpm-note {
+      background: rgba(255, 193, 7, 0.2);
+      border: 1px solid #ffc107;
+      color: #fff3cd;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
     @media (max-width: 768px) {
       .playlist-grid {
         grid-template-columns: 1fr;
@@ -256,7 +282,7 @@
 <div class="container">
   <div class="header">
     <h1>🎵 Spotify Mood Sorter</h1>
-    <p>Sort your playlist songs by mood using Spotify's audio analysis</p>
+    <p>Sort your playlist songs by mood using BPM analysis</p>
   </div>
 
   <div class="setup-instructions">
@@ -269,6 +295,10 @@
       <li>Run the Node.js server and enter any value in Client ID field below</li>
     </ol>
     <p><strong>Note:</strong> This app works with the included Node.js backend server. Make sure to run the server and set up your Spotify app credentials.</p>
+  </div>
+
+  <div class="bpm-note">
+    <strong>🎼 BPM-Based Analysis:</strong> Since Spotify no longer provides audio features, this app uses BPM (beats per minute) data from third-party sources to categorize songs by mood. The analysis may take a bit longer as we fetch BPM data for each track.
   </div>
 
   <div class="auth-section">
@@ -293,12 +323,12 @@
     <div class="form-group">
       <label for="targetMood">Select Target Mood:</label>
       <select id="targetMood">
-        <option value="happy">😊 Happy/Upbeat</option>
-        <option value="chill">😌 Chill/Relaxed</option>
-        <option value="energetic">⚡ Energetic/Pumped</option>
-        <option value="sad">😢 Sad/Melancholic</option>
-        <option value="focus">🎯 Focus/Study</option>
-        <option value="party">🎉 Party/Dance</option>
+        <option value="happy">😊 Happy/Upbeat (100-130 BPM)</option>
+        <option value="chill">😌 Chill/Relaxed (60-90 BPM)</option>
+        <option value="energetic">⚡ Energetic/Pumped (130-180 BPM)</option>
+        <option value="sad">😢 Sad/Melancholic (0-70 BPM)</option>
+        <option value="focus">🎯 Focus/Study (70-110 BPM)</option>
+        <option value="party">🎉 Party/Dance (120-150 BPM)</option>
       </select>
     </div>
     <button id="analyzeMoodBtn">Analyze Playlist Mood</button>
@@ -320,21 +350,25 @@
 
 <div id="loading" class="loading" style="display: none;">
   <div class="spinner"></div>
-  <p>Analyzing your playlist...</p>
+  <p id="loadingText">Analyzing your playlist...</p>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+  <p id="progressText">0% complete</p>
 </div>
 
 <script>
   let accessToken = null;
   let userIdGlobal = null;
 
-  // Mood analysis logic based on Spotify audio features
+  // BPM-based mood profiles
   const moodProfiles = {
-    happy: { valence: [0.6, 1], energy: [0.4, 1], danceability: [0.4, 1] },
-    chill: { valence: [0.2, 0.7], energy: [0, 0.6], danceability: [0, 0.7] },
-    energetic: { energy: [0.7, 1], danceability: [0.6, 1], tempo: [100, 200] },
-    sad: { valence: [0, 0.4], energy: [0, 0.5] },
-    focus: { instrumentalness: [0.3, 1], energy: [0.2, 0.6], valence: [0.2, 0.7] },
-    party: { danceability: [0.7, 1], energy: [0.7, 1], valence: [0.6, 1] }
+    happy: { minBPM: 100, maxBPM: 130, description: "Upbeat and positive" },
+    chill: { minBPM: 60, maxBPM: 90, description: "Relaxed and mellow" },
+    energetic: { minBPM: 130, maxBPM: 180, description: "High energy and intense" },
+    sad: { minBPM: 0, maxBPM: 70, description: "Slow and melancholic" },
+    focus: { minBPM: 70, maxBPM: 110, description: "Steady and concentrated" },
+    party: { minBPM: 120, maxBPM: 150, description: "Danceable and fun" }
   };
 
   // Event listeners
@@ -379,51 +413,11 @@
   async function analyzeMood() {
     const playlistInput = document.getElementById('playlistUrlMain').value.trim();
     const targetMood = document.getElementById('targetMood').value;
-    async function fetchBPM(artist, title) {
-      const res = await fetch(`/api/bpm?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.bpm;
+
+    if (!playlistInput) {
+      showError('Please enter a playlist URL or ID');
+      return;
     }
-
-    function analyzeTracksForMood(tracks, bpmData, targetMood) {
-      const moodRanges = {
-        happy: [100, 130],
-        chill: [60, 90],
-        energetic: [130, 180],
-        sad: [0, 70],
-        focus: [70, 110],
-        party: [120, 150]
-      };
-
-      const [minBPM, maxBPM] = moodRanges[targetMood] || [0, 999];
-      const results = { matching: [], other: [] };
-
-      tracks.forEach((track, i) => {
-        const bpm = bpmData[i];
-        const songData = {
-          track,
-          bpm,
-          moodTags: bpm ? [`BPM: ${bpm}`] : ['No BPM']
-        };
-
-        if (bpm && bpm >= minBPM && bpm <= maxBPM) {
-          results.matching.push(songData);
-        } else {
-          results.other.push(songData);
-        }
-      });
-
-      return results;
-    }
-
-
-      if (!playlistInput) {
-        showError('Please enter a playlist URL or ID');
-        return;
-      }
-
-
 
     if (!accessToken) {
       showError('Please authenticate with Spotify first');
@@ -431,21 +425,35 @@
     }
 
     showLoading(true);
+    updateProgress(0, 'Fetching playlist...');
 
     try {
       const playlistId = extractPlaylistId(playlistInput);
       console.log('Extracted playlist ID:', playlistId);
 
+      // Fetch playlist tracks
+      updateProgress(10, 'Getting track list...');
       const playlist = await fetchPlaylistTracks(playlistId);
-      const bpmData = await Promise.all(playlist.tracks.map(track => {
-        const artist = track.artists[0]?.name || '';
-        const title = track.name || '';
-        return fetchBPM(artist, title);
-      }));
 
+      if (playlist.tracks.length === 0) {
+        throw new Error('No tracks found in playlist');
+      }
+
+      updateProgress(20, `Fetching BPM data for ${playlist.tracks.length} tracks...`);
+
+      // Fetch BPM data for all tracks with progress tracking
+      const bpmData = await fetchBPMDataWithProgress(playlist.tracks);
+
+      updateProgress(90, 'Analyzing mood patterns...');
+
+      // Analyze tracks based on BPM
       const analyzedTracks = analyzeTracksForMood(playlist.tracks, bpmData, targetMood);
-      displayResults(analyzedTracks, targetMood);
 
+      updateProgress(100, 'Complete!');
+
+      setTimeout(() => {
+        displayResults(analyzedTracks, targetMood);
+      }, 500);
 
     } catch (error) {
       console.error('Error analyzing playlist:', error);
@@ -453,6 +461,116 @@
     } finally {
       showLoading(false);
     }
+  }
+
+  async function fetchBPMDataWithProgress(tracks) {
+    const bpmData = [];
+    const total = tracks.length;
+
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i];
+      const artist = track.artists[0]?.name || '';
+      const title = track.name || '';
+
+      try {
+        const bpm = await fetchBPM(artist, title);
+        bpmData.push(bpm);
+
+        // Update progress
+        const progress = 20 + Math.floor((i + 1) / total * 60); // 20% to 80%
+        updateProgress(progress, `Analyzing ${i + 1}/${total}: ${title}`);
+
+        // Small delay to prevent API overload
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+      } catch (error) {
+        console.warn(`Failed to get BPM for ${title} by ${artist}:`, error);
+        bpmData.push(null);
+      }
+    }
+
+    return bpmData;
+  }
+
+  async function fetchBPM(artist, title) {
+    try {
+      const response = await fetch(`/api/bpm?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      return data.bpm || null;
+    } catch (error) {
+      console.warn(`BPM fetch failed for ${title} by ${artist}:`, error);
+      return null;
+    }
+  }
+
+  function analyzeTracksForMood(tracks, bpmData, targetMood) {
+    const profile = moodProfiles[targetMood];
+    const results = { matching: [], other: [] };
+
+    tracks.forEach((track, index) => {
+      const bpm = bpmData[index];
+      const moodTags = generateMoodTags(bpm);
+
+      const songData = {
+        track,
+        bpm,
+        moodTags,
+        isMatch: false
+      };
+
+      // Check if BPM falls within the mood range
+      if (bpm && bpm >= profile.minBPM && bpm <= profile.maxBPM) {
+        songData.isMatch = true;
+        results.matching.push(songData);
+      } else {
+        results.other.push(songData);
+      }
+    });
+
+    // Sort by BPM (matching songs by closest to center of range, others by BPM value)
+    const centerBPM = (profile.minBPM + profile.maxBPM) / 2;
+
+    results.matching.sort((a, b) => {
+      const aDiff = Math.abs(a.bpm - centerBPM);
+      const bDiff = Math.abs(b.bpm - centerBPM);
+      return aDiff - bDiff;
+    });
+
+    results.other.sort((a, b) => {
+      if (!a.bpm && !b.bpm) return 0;
+      if (!a.bpm) return 1;
+      if (!b.bpm) return -1;
+      return a.bpm - b.bpm;
+    });
+
+    return results;
+  }
+
+  function generateMoodTags(bpm) {
+    const tags = [];
+
+    if (!bpm) {
+      tags.push('No BPM Data');
+      return tags;
+    }
+
+    // Add BPM-based mood tags
+    if (bpm <= 70) tags.push('Slow');
+    else if (bpm <= 90) tags.push('Chill');
+    else if (bpm <= 110) tags.push('Moderate');
+    else if (bpm <= 130) tags.push('Upbeat');
+    else if (bpm <= 150) tags.push('Energetic');
+    else tags.push('High Energy');
+
+    // Add specific mood indicators
+    if (bpm >= 120 && bpm <= 140) tags.push('Danceable');
+    if (bpm >= 60 && bpm <= 80) tags.push('Relaxing');
+    if (bpm >= 140) tags.push('Intense');
+
+    return tags;
   }
 
   function extractPlaylistId(input) {
@@ -479,99 +597,6 @@
     };
   }
 
-  async function fetchAudioFeatures(tracks) {
-    const trackIds = tracks
-      .map(track => track?.id)
-      .filter(id => typeof id === 'string' && id.length > 0)
-      .slice(0, 100)
-      .join(',');
-
-    if (!trackIds) {
-      showError('No valid tracks found to analyze.');
-      return;
-    }
-
-    const response = await fetch(`/api/spotify/audio-features?ids=${trackIds}&user_id=${userIdGlobal}`);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Failed to fetch audio features: ${response.status} - ${errorData.error || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    return data.audio_features;
-  }
-
-  function analyzeTracksForMood(tracks, audioFeatures, targetMood) {
-    const profile = moodProfiles[targetMood];
-    const results = { matching: [], other: [] };
-
-    tracks.forEach((track, index) => {
-      const features = audioFeatures[index];
-      if (!features) return;
-
-      const moodScore = calculateMoodScore(features, profile);
-      const trackData = {
-        track,
-        features,
-        moodScore,
-        moodTags: getMoodTags(features)
-      };
-
-      if (moodScore > 0.6) {
-        results.matching.push(trackData);
-      } else {
-        results.other.push(trackData);
-      }
-    });
-
-    // Sort by mood score (highest first)
-    results.matching.sort((a, b) => b.moodScore - a.moodScore);
-    results.other.sort((a, b) => b.moodScore - a.moodScore);
-
-    return results;
-  }
-
-  function calculateMoodScore(features, profile) {
-    let score = 0;
-    let criteria = 0;
-
-    Object.keys(profile).forEach(key => {
-      const featureValue = features[key];
-      const profileValue = profile[key];
-
-      if (featureValue === null || featureValue === undefined) return;
-
-      if (Array.isArray(profileValue)) {
-        // Range check
-        if (featureValue >= profileValue[0] && featureValue <= profileValue[1]) {
-          score += 1;
-        }
-      } else {
-        // Exact match (for categorical features like mode)
-        if (featureValue === profileValue) {
-          score += 1;
-        }
-      }
-      criteria += 1;
-    });
-
-    return criteria > 0 ? score / criteria : 0;
-  }
-
-  function getMoodTags(features) {
-    const tags = [];
-    if (features.valence > 0.7) tags.push('Happy');
-    if (features.energy > 0.7) tags.push('Energetic');
-    if (features.danceability > 0.7) tags.push('Danceable');
-    if (features.valence < 0.3) tags.push('Sad');
-    if (features.energy < 0.3) tags.push('Calm');
-    if (features.instrumentalness > 0.5) tags.push('Instrumental');
-    if (features.acousticness > 0.6) tags.push('Acoustic');
-    if (features.speechiness > 0.6) tags.push('Vocal');
-    return tags;
-  }
-
   function displayResults(results, targetMood) {
     const matchingDiv = document.getElementById('matchingSongs');
     const otherDiv = document.getElementById('otherSongs');
@@ -579,8 +604,10 @@
     matchingDiv.innerHTML = '';
     otherDiv.innerHTML = '';
 
+    const profile = moodProfiles[targetMood];
+
     if (results.matching.length === 0) {
-      matchingDiv.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">No songs found matching this mood. Try a different mood or playlist!</p>';
+      matchingDiv.innerHTML = `<p style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">No songs found matching ${targetMood} mood (${profile.minBPM}-${profile.maxBPM} BPM). Try a different mood or check if BPM data is available for your tracks!</p>`;
     } else {
       results.matching.forEach(item => {
         matchingDiv.appendChild(createSongElement(item));
@@ -588,7 +615,7 @@
     }
 
     if (results.other.length === 0) {
-      otherDiv.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">All songs match your selected mood!</p>';
+      otherDiv.innerHTML = '<p style="color: rgba(255,255,255,0.6); text-align: center; padding: 20px;">All songs with BPM data match your selected mood!</p>';
     } else {
       results.other.forEach(item => {
         otherDiv.appendChild(createSongElement(item));
@@ -606,7 +633,10 @@
       party: '🎉'
     };
 
-    showSuccess(`Found ${results.matching.length} songs matching your ${moodEmojis[targetMood] || ''} ${targetMood} mood!`);
+    const totalWithBPM = results.matching.length + results.other.filter(item => item.bpm).length;
+    const totalTracks = results.matching.length + results.other.length;
+
+    showSuccess(`Found ${results.matching.length} songs matching your ${moodEmojis[targetMood] || ''} ${targetMood} mood! (${totalWithBPM}/${totalTracks} tracks had BPM data)`);
 
     // Add create playlist button
     addCreatePlaylistButton(results.matching, targetMood);
@@ -638,6 +668,7 @@
     const songUris = songs.map(item => item.track.uri);
 
     showLoading(true);
+    updateProgress(0, 'Creating playlist...');
 
     try {
       const response = await fetch('/api/playlist/create', {
@@ -649,7 +680,7 @@
           userId: userIdGlobal,
           playlistName: playlistName,
           songUris: songUris,
-          description: `Mood-sorted ${mood} playlist created by Spotify Mood Sorter`
+          description: `BPM-based ${mood} playlist created by Spotify Mood Sorter`
         })
       });
 
@@ -659,7 +690,11 @@
       }
 
       const result = await response.json();
-      showSuccess(`✅ Created playlist "${playlistName}" with ${result.songsAdded} songs!`);
+      updateProgress(100, 'Playlist created!');
+
+      setTimeout(() => {
+        showSuccess(`✅ Created playlist "${playlistName}" with ${result.songsAdded} songs!`);
+      }, 500);
 
     } catch (error) {
       console.error('Playlist creation error:', error);
@@ -680,11 +715,21 @@
       <div class="song-artist">${escapeHtml(artists)}</div>
       <div class="mood-indicators">
         ${item.moodTags.map(tag => `<span class="mood-tag">${escapeHtml(tag)}</span>`).join('')}
-        <span class="mood-tag">${item.bpm ? `BPM: ${item.bpm}` : 'BPM: N/A'}</span>
+        <span class="mood-tag ${item.bpm ? 'bpm-available' : 'bpm-missing'}">${item.bpm ? `${item.bpm} BPM` : 'BPM: N/A'}</span>
       </div>
     `;
 
     return div;
+  }
+
+  function updateProgress(percent, text) {
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    const loadingText = document.getElementById('loadingText');
+
+    if (progressFill) progressFill.style.width = percent + '%';
+    if (progressText) progressText.textContent = `${percent}% complete`;
+    if (loadingText) loadingText.textContent = text;
   }
 
   function escapeHtml(text) {
@@ -695,6 +740,9 @@
 
   function showLoading(show) {
     document.getElementById('loading').style.display = show ? 'block' : 'none';
+    if (!show) {
+      updateProgress(0, 'Analyzing your playlist...');
+    }
   }
 
   function showError(message) {
