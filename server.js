@@ -249,6 +249,20 @@ app.get('/api/spotify/*', async (req, res) => {
     return res.status(401).json({ error: 'No valid session' });
   }
 
+  const spotifyPath = req.params[0];
+  const query = { ...req.query };
+  delete query.user_id;
+
+  const queryString = new URLSearchParams(query).toString();
+  const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
+
+  const response = await axios.get(url, {
+    headers: { Authorization: `Bearer ${session.access_token}` }
+  });
+
+  res.json(response.data);
+});
+
   try {
     const spotifyPath = req.params[0];
     const query = { ...req.query };
