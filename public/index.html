@@ -197,7 +197,8 @@
     const redirectUri = `${window.location.origin}${window.location.pathname}`;
     const scopes = 'playlist-read-private playlist-modify-public playlist-modify-private';
 
-    const proxyUrl = `https://spotify-auth.trustdev.link/login?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
+    const proxyUrl = `/auth/spotify`;
+
 
 
     window.location.href = proxyUrl;
