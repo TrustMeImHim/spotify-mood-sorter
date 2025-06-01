@@ -251,9 +251,11 @@ app.get('/api/spotify/*', async (req, res) => {
 
   try {
     const spotifyPath = req.params[0];
-    const queryString = new URLSearchParams(req.query).toString();
-    const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
+    const query = { ...req.query };
+    delete query.user_id;
 
+    const queryString = new URLSearchParams(query).toString();
+    const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${session.access_token}` }
     });
