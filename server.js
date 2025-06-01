@@ -20,6 +20,7 @@ const REDIRECT_URI = process.env.REDIRECT_URI || `http://localhost:${PORT}/callb
 
 // Store user sessions (in production, use a proper database)
 const userSessions = new Map();
+
 // Generate random string for state parameter
 function generateRandomString(length) {
   let text = '';
@@ -249,20 +250,6 @@ app.get('/api/spotify/*', async (req, res) => {
     return res.status(401).json({ error: 'No valid session' });
   }
 
-  const spotifyPath = req.params[0];
-  const query = { ...req.query };
-  delete query.user_id;
-
-  const queryString = new URLSearchParams(query).toString();
-  const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
-
-  const response = await axios.get(url, {
-    headers: { Authorization: `Bearer ${session.access_token}` }
-  });
-
-  res.json(response.data);
-});
-
   try {
     const spotifyPath = req.params[0];
     const query = { ...req.query };
@@ -270,6 +257,7 @@ app.get('/api/spotify/*', async (req, res) => {
 
     const queryString = new URLSearchParams(query).toString();
     const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
+
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${session.access_token}` }
     });
@@ -289,14 +277,14 @@ app.get('/api/spotify/*', async (req, res) => {
 app.get('/error', (req, res) => {
   const message = req.query.message || 'unknown_error';
   res.send(`
-        <html>
-            <body style="font-family: Arial; text-align: center; padding: 50px;">
-                <h1>Authentication Error</h1>
-                <p>Error: ${message}</p>
-                <a href="/">Try Again</a>
-            </body>
-        </html>
-    `);
+    <html>
+      <body style="font-family: Arial; text-align: center; padding: 50px;">
+        <h1>Authentication Error</h1>
+        <p>Error: ${message}</p>
+        <a href="/">Try Again</a>
+      </body>
+    </html>
+  `);
 });
 
 // Serve the main app
