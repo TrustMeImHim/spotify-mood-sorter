@@ -20,7 +20,6 @@ const REDIRECT_URI = process.env.REDIRECT_URI || `http://localhost:${PORT}/callb
 
 // Store user sessions (in production, use a proper database)
 const userSessions = new Map();
-D
 // Generate random string for state parameter
 function generateRandomString(length) {
   let text = '';
