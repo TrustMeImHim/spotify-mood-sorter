@@ -229,11 +229,13 @@
         })
         .catch(() => showError("Error fetching token."));
     }
+    document.getElementById('analyzeMoodBtn').addEventListener('click', analyzeMood);
   });
 
 
   async function analyzeMood() {
     const playlistInput = document.getElementById('playlistUrl').value.trim();
+    console.log('Playlist Input:', playlistInput);
     const targetMood = document.getElementById('targetMood').value;
 
     if (!playlistInput) {
