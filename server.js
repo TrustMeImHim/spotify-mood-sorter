@@ -4,12 +4,13 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 require('dotenv').config();
-const bpmFetcher = require('./bpmFetcher');
-app.use(bpmFetcher);
 
-
-const app = express();
+const app = express(); // FIXED: Moved app initialization before middleware
 const PORT = process.env.PORT || 3000;
+
+// Import and use BPM fetcher routes
+const bpmFetcher = require('./bpmFetcher');
+app.use(bpmFetcher); // FIXED: Now using app instead of undefined variable
 
 // Middleware
 app.use(cors());
