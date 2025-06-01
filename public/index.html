@@ -11,14 +11,11 @@
       min-height: 100vh;
       color: white;
     }
-
     .header h1 {
       background: linear-gradient(45deg, #9B59B6, #BB6BD9);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
-
     .auth-section, .main-section {
       background: rgba(25, 20, 20, 0.8);
       border-radius: 20px;
@@ -27,115 +24,74 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(155, 89, 182, 0.2);
     }
-
     label { color: #9B59B6; }
-
     input, select, button {
       border: 2px solid rgba(155, 89, 182, 0.3);
       background: rgba(255, 255, 255, 0.1);
       color: white;
     }
-
     input:focus, select:focus {
       border-color: #9B59B6;
       box-shadow: 0 0 15px rgba(155, 89, 182, 0.3);
     }
-
     button {
       background: linear-gradient(45deg, #9B59B6, #BB6BD9);
+      cursor: pointer;
     }
-
-    button:hover {
-      box-shadow: 0 10px 25px rgba(155, 89, 182, 0.4);
-    }
-
-    .playlist-section { border: 1px solid rgba(155, 89, 182, 0.2); }
     .playlist-section h3 { color: #9B59B6; }
-
-    .song-item { border-left: 4px solid #9B59B6; }
-    .song-item:hover { background: rgba(80, 80, 80, 0.8); }
-
+    .song-item { border-left: 4px solid #9B59B6; padding: 10px; margin-bottom: 10px; }
     .mood-tag {
       background: rgba(155, 89, 182, 0.2);
       color: #9B59B6;
+      padding: 2px 6px;
+      margin-right: 5px;
+      border-radius: 4px;
     }
-
-    .spinner {
-      border: 4px solid rgba(155, 89, 182, 0.3);
-      border-top: 4px solid #9B59B6;
+    .success, .error {
+      margin: 20px 0;
+      padding: 15px;
+      border-radius: 8px;
     }
-
-    .error {
-      background: rgba(231, 76, 60, 0.2);
-      border: 1px solid #e74c3c;
-      color: #ff6b6b;
-    }
-
     .success {
       background: rgba(142, 68, 173, 0.2);
       border: 1px solid #9B59B6;
       color: #9B59B6;
     }
-
-    .setup-instructions {
-      background: rgba(142, 68, 173, 0.2);
-      border: 1px solid #9B59B6;
-      color: #d6b3f7;
+    .error {
+      background: rgba(231, 76, 60, 0.2);
+      border: 1px solid #e74c3c;
+      color: #ff6b6b;
     }
-
-    .setup-instructions h4 { color: #9B59B6; }
-    a { color: #BB6BD9; }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>🎵 Spotify Mood Sorter</h1>
-    <p>Sort your playlist songs by mood using Spotify's audio analysis</p>
-  </div>
-
-  <div class="setup-instructions">
-    <h4>🚀 Setup Instructions:</h4>
-    <ol>
-      <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color: #1DB954;">Spotify Developer Dashboard</a></li>
-      <li>Create a new app and get your Client ID</li>
-      <li>Add your Railway or local redirect URI to the app settings</li>
-      <li>Enter your credentials below</li>
-    </ol>
   </div>
 
   <div class="auth-section">
-    <h2>🔐 Spotify API Setup</h2>
-    <div class="form-group">
-      <label for="clientId">Client ID:</label>
-      <input type="text" id="clientId" placeholder="Your Spotify Client ID">
-    </div>
-    <button id="authenticateBtn">Connect to Spotify</button>
+    <h2>🔐 Connect Spotify</h2>
+    <input id="clientId" type="text" placeholder="Spotify Client ID" />
+    <input id="playlistInput" type="text" placeholder="Playlist URL or ID" />
+    <button id="authenticateBtn">Connect</button>
   </div>
 
-  <div class="main-section" style="display: none;" id="mainSection">
-    <h2>🎭 Mood Selection</h2>
-    <div class="form-group">
-      <label for="playlistUrl">Playlist URL or ID:</label>
-      <input type="text" id="playlistUrl" placeholder="https://open.spotify.com/playlist/... or just the ID">
-    </div>
-    <label for="targetMood">Select Target Mood:</label>
+  <div class="main-section" style="display:none" id="mainSection">
+    <h2>🎭 Mood Filter</h2>
     <select id="targetMood">
-      <option value="happy">😊 Happy/Upbeat</option>
-      <option value="chill">😌 Chill/Relaxed</option>
-      <option value="energetic">⚡ Energetic/Pumped</option>
-      <option value="sad">😢 Sad/Melancholic</option>
-      <option value="focus">🎯 Focus/Study</option>
-      <option value="party">🎉 Party/Dance</option>
+      <option value="happy">😊 Happy</option>
+      <option value="chill">😌 Chill</option>
+      <option value="energetic">⚡ Energetic</option>
+      <option value="sad">😢 Sad</option>
+      <option value="focus">🎯 Focus</option>
+      <option value="party">🎉 Party</option>
     </select>
-    <br><br>
-    <button id="analyzeMoodBtn">Analyze Playlist Mood</button>
-  </div>
+    <button id="analyzeMoodBtn">Analyze</button>
 
-  <div id="results" style="display: none;">
-    <div class="playlist-grid">
+    <div id="results" style="display:none;">
       <div class="playlist-section">
-        <h3>🎯 Matching Your Mood</h3>
+        <h3>🎯 Matching Songs</h3>
         <div id="matchingSongs"></div>
       </div>
       <div class="playlist-section">
@@ -145,15 +101,11 @@
     </div>
   </div>
 
-  <div id="loading" class="loading" style="display: none;">
-    <div class="spinner"></div>
-    <p>Analyzing your playlist...</p>
-  </div>
+  <div id="loading" style="display:none;">Loading...</div>
 </div>
 
 <script>
   let accessToken = null;
-  let userIdGlobal = null;
 
   const moodProfiles = {
     happy: { valence: [0.6, 1], energy: [0.4, 1], danceability: [0.4, 1] },
@@ -166,216 +118,85 @@
 
   document.getElementById('authenticateBtn').addEventListener('click', () => {
     const clientId = document.getElementById('clientId').value.trim();
-    if (!clientId) return showError('Please enter your Spotify Client ID');
-
-    const redirectUri = `${window.location.origin}${window.location.pathname}`;
-    const scopes = 'playlist-read-private playlist-modify-public playlist-modify-private';
-    const proxyUrl = `/auth/spotify?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
-
-    window.location.href = proxyUrl;
+    if (!clientId) return alert("Client ID required");
+    window.location.href = `/auth/spotify`;
   });
 
   window.addEventListener('load', () => {
     const params = new URLSearchParams(window.location.search);
     const userId = params.get('user_id');
-    const authStatus = params.get('auth');
+    const auth = params.get('auth');
 
-    if (authStatus === 'success' && userId) {
+    if (auth === 'success' && userId) {
       fetch(`/api/auth/token/${userId}`)
         .then(res => res.json())
         .then(data => {
-          if (data.access_token) {
-            accessToken = data.access_token;
-            userIdGlobal = userId;
-            document.querySelector('.auth-section').style.display = 'none';
-            document.getElementById('mainSection').style.display = 'block';
-            showSuccess(`Connected as ${data.user.display_name || 'Spotify User'}`);
-          } else {
-            showError("Token fetch failed.");
-          }
-        })
-        .catch(() => showError("Error fetching token."));
+          accessToken = data.access_token;
+          document.querySelector('.auth-section').style.display = 'none';
+          document.getElementById('mainSection').style.display = 'block';
+        });
     }
   });
 
-  document.getElementById('analyzeMoodBtn').addEventListener('click', analyzeMood);
+  document.getElementById('analyzeMoodBtn').addEventListener('click', async () => {
+    const playlistInput = document.getElementById('playlistInput').value.trim();
+    const playlistId = playlistInput.match(/playlist\/([a-zA-Z0-9]+)/)?.[1] || playlistInput;
+    const mood = document.getElementById('targetMood').value;
 
-  async function analyzeMood() {
-    const playlistInput = document.getElementById('playlistUrl').value.trim();
-    const targetMood = document.getElementById('targetMood').value;
+    if (!playlistId || !accessToken) return;
 
-    if (!playlistInput) return showError('Please enter a playlist URL or ID');
-    if (!accessToken) return showError('Please authenticate with Spotify first');
-
-    showLoading(true);
+    document.getElementById('loading').style.display = 'block';
 
     try {
-      const playlistId = extractPlaylistId(playlistInput);
-      const playlist = await fetchPlaylistTracks(playlistId);
-      const audioFeatures = await fetchAudioFeatures(playlist.tracks);
-      const analyzedTracks = analyzeTracksForMood(playlist.tracks, audioFeatures, targetMood);
-      displayResults(analyzedTracks, targetMood);
-    } catch (error) {
-      showError('Error analyzing playlist: ' + error.message);
-    } finally {
-      showLoading(false);
-    }
-  }
+      const trackResponse = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const data = await trackResponse.json();
+      const validTracks = data.items.filter(item => item.track && item.track.id).map(item => item.track);
+      const ids = validTracks.map(t => t.id).join(',');
 
-  function extractPlaylistId(input) {
-    const match = input.match(/playlist\/([a-zA-Z0-9]+)/);
-    return match ? match[1] : input;
-  }
+      const featuresResponse = await fetch(`https://api.spotify.com/v1/audio-features?ids=${ids}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const features = (await featuresResponse.json()).audio_features;
 
-  async function fetchPlaylistTracks(playlistId) {
-    console.log('Calling Spotify API with ID:', playlistId);
-    const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
+      const profile = moodProfiles[mood];
+      const results = { matching: [], other: [] };
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch playlist. Details: ${errorText}`);
-    }
+      validTracks.forEach((track, i) => {
+        const feat = features[i];
+        if (!feat) return;
+        const score = Object.keys(profile).reduce((acc, key) => {
+          const range = profile[key];
+          return acc + (Array.isArray(range) ? (feat[key] >= range[0] && feat[key] <= range[1] ? 1 : 0) : (feat[key] === range ? 1 : 0));
+        }, 0) / Object.keys(profile).length;
 
-    const data = await response.json();
+        const tags = [];
+        if (feat.valence > 0.7) tags.push('Happy');
+        if (feat.energy > 0.7) tags.push('Energetic');
+        if (feat.danceability > 0.7) tags.push('Danceable');
+        if (feat.valence < 0.3) tags.push('Sad');
+        if (feat.energy < 0.3) tags.push('Calm');
+        if (feat.instrumentalness > 0.5) tags.push('Instrumental');
 
-    // ✅ Filter out tracks you can't access
-    const filteredTracks = data.items.filter(
-      item => item.track && item.track.id && item.track.is_local !== true
-    );
+        const songHTML = `<div class="song-item">
+            <div><b>${track.name}</b> — ${track.artists.map(a => a.name).join(', ')}</div>
+            <div>${tags.map(tag => `<span class="mood-tag">${tag}</span>`).join('')} <span class="mood-tag">Score: ${Math.round(score * 100)}%</span></div>
+          </div>`;
 
-    // ✅ Optional: log how many were kept
-    console.log(`✔️ Found ${filteredTracks.length} accessible tracks`);
-
-    return {
-      tracks: filteredTracks.map(item => item.track)
-    };
-  }
-
-
-
-  async function fetchAudioFeatures(tracks) {
-    const batchSize = 100;
-    const trackIds = tracks.map(track => track.id);
-    const allFeatures = [];
-
-    for (let i = 0; i < trackIds.length; i += batchSize) {
-      const batch = trackIds.slice(i, i + batchSize).join(',');
-      const response = await fetch(`https://api.spotify.com/v1/audio-features?ids=${batch}`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
+        if (score > 0.6) results.matching.push(songHTML);
+        else results.other.push(songHTML);
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch audio features: ${errorText}`);
-      }
-
-      const data = await response.json();
-      allFeatures.push(...data.audio_features);
+      document.getElementById('matchingSongs').innerHTML = results.matching.join('');
+      document.getElementById('otherSongs').innerHTML = results.other.join('');
+      document.getElementById('results').style.display = 'block';
+    } catch (err) {
+      alert('Error analyzing playlist.');
+    } finally {
+      document.getElementById('loading').style.display = 'none';
     }
-
-    return allFeatures;
-  }
-
-
-  function analyzeTracksForMood(tracks, audioFeatures, mood) {
-    const profile = moodProfiles[mood];
-    const results = { matching: [], other: [] };
-
-    tracks.forEach((track, i) => {
-      const features = audioFeatures[i];
-      if (!features) return;
-      const score = calculateMoodScore(features, profile);
-      const trackData = {
-        track,
-        features,
-        moodScore: score,
-        moodTags: getMoodTags(features)
-      };
-      (score > 0.6 ? results.matching : results.other).push(trackData);
-    });
-
-    results.matching.sort((a, b) => b.moodScore - a.moodScore);
-    results.other.sort((a, b) => b.moodScore - a.moodScore);
-    return results;
-  }
-
-  function calculateMoodScore(features, profile) {
-    let score = 0, criteria = 0;
-    for (const key in profile) {
-      const val = features[key];
-      const range = profile[key];
-      if (Array.isArray(range)) {
-        if (val >= range[0] && val <= range[1]) score++;
-      } else {
-        if (val === range) score++;
-      }
-      criteria++;
-    }
-    return criteria ? score / criteria : 0;
-  }
-
-  function getMoodTags(f) {
-    const tags = [];
-    if (f.valence > 0.7) tags.push('Happy');
-    if (f.energy > 0.7) tags.push('Energetic');
-    if (f.danceability > 0.7) tags.push('Danceable');
-    if (f.valence < 0.3) tags.push('Sad');
-    if (f.energy < 0.3) tags.push('Calm');
-    if (f.instrumentalness > 0.5) tags.push('Instrumental');
-    return tags;
-  }
-
-  function displayResults({ matching, other }, mood) {
-    const matchingDiv = document.getElementById('matchingSongs');
-    const otherDiv = document.getElementById('otherSongs');
-    matchingDiv.innerHTML = '';
-    otherDiv.innerHTML = '';
-    matching.forEach(item => matchingDiv.appendChild(createSongElement(item)));
-    other.forEach(item => otherDiv.appendChild(createSongElement(item)));
-    document.getElementById('results').style.display = 'block';
-    showSuccess(`Found ${matching.length} songs matching your ${mood} mood!`);
-  }
-
-  function createSongElement(item) {
-    const div = document.createElement('div');
-    div.className = 'song-item';
-    const artists = item.track.artists.map(a => a.name).join(', ');
-    div.innerHTML = `
-    <div class="song-title">${item.track.name}</div>
-    <div class="song-artist">${artists}</div>
-    <div class="mood-indicators">
-      ${item.moodTags.map(tag => `<span class="mood-tag">${tag}</span>`).join('')}
-      <span class="mood-tag">Score: ${Math.round(item.moodScore * 100)}%</span>
-    </div>
-  `;
-    return div;
-  }
-
-  function showLoading(state) {
-    document.getElementById('loading').style.display = state ? 'block' : 'none';
-  }
-
-  function showError(msg) {
-    removeMessages();
-    const div = document.createElement('div');
-    div.className = 'error';
-    div.textContent = msg;
-    document.querySelector('.container').insertBefore(div, document.querySelector('.auth-section'));
-  }
-
-  function showSuccess(msg) {
-    removeMessages();
-    const div = document.createElement('div');
-    div.className = 'success';
-    div.textContent = msg;
-    document.querySelector('.container').insertBefore(div, document.querySelector('.auth-section'));
-  }
-
-  function removeMessages() {
-    document.querySelectorAll('.error, .success').forEach(el => el.remove());
-  }
+  });
 </script>
 </body>
 </html>
