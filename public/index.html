@@ -446,8 +446,6 @@
       const analyzedTracks = analyzeTracksForMood(playlist.tracks, bpmData, targetMood);
       displayResults(analyzedTracks, targetMood);
 
-      const analyzedTracks = analyzeTracksForMood(playlist.tracks, audioFeatures, targetMood);
-      displayResults(analyzedTracks, targetMood);
 
     } catch (error) {
       console.error('Error analyzing playlist:', error);
