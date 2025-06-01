@@ -34,7 +34,8 @@ function generateRandomString(length) {
 // Route: Initiate Spotify OAuth
 app.get('/auth/spotify', (req, res) => {
   const state = generateRandomString(16);
-  const scope = 'playlist-read-private playlist-modify-public playlist-modify-private';
+  // Add user-read-private scope for accessing user profile
+  const scope = 'playlist-read-private playlist-modify-public playlist-modify-private user-read-private';
 
   const authURL = 'https://accounts.spotify.com/authorize?' +
     new URLSearchParams({
@@ -48,6 +49,7 @@ app.get('/auth/spotify', (req, res) => {
   // Store state for validation
   userSessions.set(state, { timestamp: Date.now() });
 
+  console.log('Initiating OAuth with scopes:', scope);
   res.redirect(authURL);
 });
 
@@ -250,6 +252,17 @@ app.get('/api/spotify/*', async (req, res) => {
     return res.status(401).json({ error: 'No valid session' });
   }
 
+  // Check if token is expired and refresh if needed
+  if (Date.now() >= session.expires_at) {
+    console.log('Token expired, attempting refresh...');
+    try {
+      await refreshTokenForSession(userId);
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return res.status(401).json({ error: 'Token refresh failed', details: error.message });
+    }
+  }
+
   try {
     const spotifyPath = req.params[0];
     const query = { ...req.query };
@@ -258,6 +271,9 @@ app.get('/api/spotify/*', async (req, res) => {
     const queryString = new URLSearchParams(query).toString();
     const url = `https://api.spotify.com/v1/${spotifyPath}${queryString ? '?' + queryString : ''}`;
 
+    console.log(`Making Spotify API request to: ${url}`);
+    console.log(`Token starts with: ${session.access_token.substring(0, 10)}...`);
+
     const response = await axios.get(url, {
       headers: { 'Authorization': `Bearer ${session.access_token}` }
     });
@@ -265,13 +281,50 @@ app.get('/api/spotify/*', async (req, res) => {
     res.json(response.data);
 
   } catch (error) {
-    console.error('Spotify API proxy error:', error.response?.data || error.message);
+    console.error('Spotify API proxy error:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url
+    });
+
     res.status(error.response?.status || 500).json({
       error: 'Spotify API request failed',
-      details: error.response?.data || error.message
+      details: error.response?.data || error.message,
+      status: error.response?.status
     });
   }
 });
+
+// Helper function to refresh token for a session
+async function refreshTokenForSession(userId) {
+  const session = userSessions.get(userId);
+
+  if (!session?.refresh_token) {
+    throw new Error('No refresh token available');
+  }
+
+  const response = await axios.post('https://accounts.spotify.com/api/token',
+    new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: session.refresh_token
+    }), {
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+  const { access_token, expires_in, refresh_token } = response.data;
+
+  // Update session
+  session.access_token = access_token;
+  session.expires_at = Date.now() + (expires_in * 1000);
+  if (refresh_token) session.refresh_token = refresh_token;
+
+  userSessions.set(userId, session);
+  return session;
+}
 
 // Error page
 app.get('/error', (req, res) => {
