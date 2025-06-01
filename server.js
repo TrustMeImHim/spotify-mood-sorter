@@ -4,6 +4,9 @@ const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 require('dotenv').config();
+const bpmFetcher = require('./bpmFetcher');
+app.use(bpmFetcher);
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;

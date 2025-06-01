@@ -379,11 +379,51 @@
   async function analyzeMood() {
     const playlistInput = document.getElementById('playlistUrlMain').value.trim();
     const targetMood = document.getElementById('targetMood').value;
-
-    if (!playlistInput) {
-      showError('Please enter a playlist URL or ID');
-      return;
+    async function fetchBPM(artist, title) {
+      const res = await fetch(`/api/bpm?artist=${encodeURIComponent(artist)}&title=${encodeURIComponent(title)}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.bpm;
     }
+
+    function analyzeTracksForMood(tracks, bpmData, targetMood) {
+      const moodRanges = {
+        happy: [100, 130],
+        chill: [60, 90],
+        energetic: [130, 180],
+        sad: [0, 70],
+        focus: [70, 110],
+        party: [120, 150]
+      };
+
+      const [minBPM, maxBPM] = moodRanges[targetMood] || [0, 999];
+      const results = { matching: [], other: [] };
+
+      tracks.forEach((track, i) => {
+        const bpm = bpmData[i];
+        const songData = {
+          track,
+          bpm,
+          moodTags: bpm ? [`BPM: ${bpm}`] : ['No BPM']
+        };
+
+        if (bpm && bpm >= minBPM && bpm <= maxBPM) {
+          results.matching.push(songData);
+        } else {
+          results.other.push(songData);
+        }
+      });
+
+      return results;
+    }
+
+
+      if (!playlistInput) {
+        showError('Please enter a playlist URL or ID');
+        return;
+      }
+
+
 
     if (!accessToken) {
       showError('Please authenticate with Spotify first');
@@ -397,7 +437,14 @@
       console.log('Extracted playlist ID:', playlistId);
 
       const playlist = await fetchPlaylistTracks(playlistId);
-      const audioFeatures = await fetchAudioFeatures(playlist.tracks);
+      const bpmData = await Promise.all(playlist.tracks.map(track => {
+        const artist = track.artists[0]?.name || '';
+        const title = track.name || '';
+        return fetchBPM(artist, title);
+      }));
+
+      const analyzedTracks = analyzeTracksForMood(playlist.tracks, bpmData, targetMood);
+      displayResults(analyzedTracks, targetMood);
 
       const analyzedTracks = analyzeTracksForMood(playlist.tracks, audioFeatures, targetMood);
       displayResults(analyzedTracks, targetMood);
@@ -635,7 +682,7 @@
       <div class="song-artist">${escapeHtml(artists)}</div>
       <div class="mood-indicators">
         ${item.moodTags.map(tag => `<span class="mood-tag">${escapeHtml(tag)}</span>`).join('')}
-        <span class="mood-tag">Score: ${Math.round(item.moodScore * 100)}%</span>
+        <span class="mood-tag">${item.bpm ? `BPM: ${item.bpm}` : 'BPM: N/A'}</span>
       </div>
     `;
 
