@@ -228,14 +228,32 @@
   }
 
   async function fetchPlaylistTracks(playlistId) {
+    console.log('Calling Spotify API with ID:', playlistId);
     const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
 
-    if (!response.ok) throw new Error('Failed to fetch playlist');
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch playlist. Details: ${errorText}`);
+    }
+
     const data = await response.json();
-    return { tracks: data.items.filter(item => item.track && item.track.id).map(item => item.track) };
+
+    // ✅ Filter out tracks you can't access
+    const filteredTracks = data.items.filter(
+      item => item.track && item.track.id && item.track.is_local !== true
+    );
+
+    // ✅ Optional: log how many were kept
+    console.log(`✔️ Found ${filteredTracks.length} accessible tracks`);
+
+    return {
+      tracks: filteredTracks.map(item => item.track)
+    };
   }
+
+
 
   async function fetchAudioFeatures(tracks) {
     const batchSize = 100;
