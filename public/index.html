@@ -238,14 +238,28 @@
   }
 
   async function fetchAudioFeatures(tracks) {
-    const ids = tracks.map(t => t.id).join(',');
-    const response = await fetch(`https://api.spotify.com/v1/audio-features?ids=${ids}`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
+    const batchSize = 100;
+    const trackIds = tracks.map(track => track.id);
+    const allFeatures = [];
 
-    if (!response.ok) throw new Error('Failed to fetch audio features');
-    return (await response.json()).audio_features;
+    for (let i = 0; i < trackIds.length; i += batchSize) {
+      const batch = trackIds.slice(i, i + batchSize).join(',');
+      const response = await fetch(`https://api.spotify.com/v1/audio-features?ids=${batch}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch audio features: ${errorText}`);
+      }
+
+      const data = await response.json();
+      allFeatures.push(...data.audio_features);
+    }
+
+    return allFeatures;
   }
+
 
   function analyzeTracksForMood(tracks, audioFeatures, mood) {
     const profile = moodProfiles[mood];
