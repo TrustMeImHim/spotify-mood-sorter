@@ -194,16 +194,12 @@
       return;
     }
 
-    const redirectUri = window.location.origin + window.location.pathname;
+    const redirectUri = `${window.location.origin}${window.location.pathname}`;
     const scopes = 'playlist-read-private playlist-modify-public playlist-modify-private';
 
-    const authUrl = `https://accounts.spotify.com/authorize?` +
-      `client_id=${clientId}&` +
-      `response_type=token&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      `scope=${encodeURIComponent(scopes)}`;
+    const proxyUrl = `https://spotify-auth-proxy.vercel.app/login?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
 
-    window.location.href = authUrl;
+    window.location.href = proxyUrl;
   }
 
   // Check for token in URL on page load
