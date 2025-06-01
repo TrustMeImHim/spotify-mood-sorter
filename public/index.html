@@ -206,18 +206,28 @@
 
   // Check for token in URL on page load
   window.addEventListener('load', () => {
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const token = params.get('access_token');
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('user_id');
+    const authStatus = params.get('auth');
 
-    if (token) {
-      accessToken = token;
-      document.querySelector('.auth-section').style.display = 'none';
-      document.getElementById('mainSection').style.display = 'block';
-      showSuccess('Successfully connected to Spotify!');
-      window.history.replaceState({}, document.title, window.location.pathname);
+    if (authStatus === 'success' && userId) {
+      fetch(`/api/auth/token/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.access_token) {
+            accessToken = data.access_token;
+            userIdGlobal = userId;
+            document.querySelector('.auth-section').style.display = 'none';
+            document.getElementById('mainSection').style.display = 'block';
+            showSuccess(`Connected as ${data.user.display_name || 'Spotify User'}`);
+          } else {
+            showError("Token fetch failed.");
+          }
+        })
+        .catch(() => showError("Error fetching token."));
     }
   });
+
 
   async function analyzeMood() {
     const playlistInput = document.getElementById('playlistUrl').value.trim();
