@@ -435,7 +435,11 @@
   }
 
   async function fetchAudioFeatures(tracks) {
-    const trackIds = tracks.map(track => track.id).join(',');
+    const trackIds = tracks
+      .map(track => track.id)
+      .filter(id => !!id) // filter out null/undefined
+      .slice(0, 100) // limit to 100
+      .join(',');
 
     const response = await fetch(`/api/spotify/audio-features?ids=${trackIds}&user_id=${userIdGlobal}`);
 
